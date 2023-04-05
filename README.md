@@ -12,7 +12,7 @@
 ## Install
 
 ```console
-todo
+npm i @libp2p/fetch
 ```
 
 ## Libp2p Usage Example

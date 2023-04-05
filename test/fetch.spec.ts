@@ -5,15 +5,19 @@ import { expect } from 'aegir/chai'
 import { duplexPair } from 'it-pair/duplex'
 import { fetchViaDuplex } from '../src/index.js'
 import { cases } from './cases/cases.js'
+import { Uint8ArrayList, isUint8ArrayList } from 'uint8arraylist'
 
 describe('Make a fetch request via duplex', () => {
   it('A simple GET request', async () => {
-    const [client, server] = duplexPair<Uint8Array>()
+    const [client, server] = duplexPair<Uint8Array | Uint8ArrayList>()
     const respPromise = fetchViaDuplex(client)(new Request('http://example.com/'))
 
     let reqToServer = ''
     const decoder = new TextDecoder()
     for await (const chunk of server.source) {
+      if (isUint8ArrayList(chunk)) {
+        throw new Error('Should not be a Uint8ArrayList')
+      }
       reqToServer += decoder.decode(chunk)
     }
 
@@ -27,12 +31,15 @@ describe('Make a fetch request via duplex', () => {
   })
 
   it('A simple GET request with headers', async () => {
-    const [client, server] = duplexPair<Uint8Array>()
+    const [client, server] = duplexPair<Uint8Array | Uint8ArrayList>()
     const respPromise = fetchViaDuplex(client)(new Request('http://example.com/', { headers: { 'X-Test': 'foo' } }))
 
     let reqToServer = ''
     const decoder = new TextDecoder()
     for await (const chunk of server.source) {
+      if (isUint8ArrayList(chunk)) {
+        throw new Error('Should not be a Uint8ArrayList')
+      }
       reqToServer += decoder.decode(chunk)
     }
 
@@ -47,12 +54,15 @@ describe('Make a fetch request via duplex', () => {
   })
 
   it('Post some data', async () => {
-    const [client, server] = duplexPair<Uint8Array>()
+    const [client, server] = duplexPair<Uint8Array | Uint8ArrayList>()
     const respPromise = fetchViaDuplex(client)(new Request('http://example.com/?foo=bar', { method: 'POST', headers: { 'X-Test': 'foo' }, body: 'hello world' }))
 
     let reqToServer = ''
     const decoder = new TextDecoder()
     for await (const chunk of server.source) {
+      if (isUint8ArrayList(chunk)) {
+        throw new Error('Should not be a Uint8ArrayList')
+      }
       reqToServer += decoder.decode(chunk)
     }
 
@@ -68,12 +78,15 @@ describe('Make a fetch request via duplex', () => {
   })
 
   it('Handles trash', async () => {
-    const [client, server] = duplexPair<Uint8Array>()
+    const [client, server] = duplexPair<Uint8Array | Uint8ArrayList>()
     const respPromise = fetchViaDuplex(client)(new Request('http://example.com/'))
 
     let reqToServer = ''
     const decoder = new TextDecoder()
     for await (const chunk of server.source) {
+      if (isUint8ArrayList(chunk)) {
+        throw new Error('Should not be a Uint8ArrayList')
+      }
       reqToServer += decoder.decode(chunk)
     }
 
@@ -100,13 +113,16 @@ describe('Make a fetch request via duplex', () => {
         continue
       }
       console.log('Testing case: ', httpCase.name)
-      const [client, server] = duplexPair<Uint8Array>()
+      const [client, server] = duplexPair<Uint8Array | Uint8ArrayList>()
       // Request doesn't matter
       const respPromise = fetchViaDuplex(client)(new Request('http://example.com/'))
 
       let reqToServer = ''
       const decoder = new TextDecoder()
       for await (const chunk of server.source) {
+        if (isUint8ArrayList(chunk)) {
+          throw new Error('Should not be a Uint8ArrayList')
+        }
         reqToServer += decoder.decode(chunk)
       }
       expect(reqToServer).to.equal('GET / HTTP/1.1\r\nHost: example.com\r\n\r\n')
@@ -145,13 +161,16 @@ describe('Make a fetch request via duplex', () => {
         continue
       }
       console.log('Testing case: ', httpCase.name)
-      const [client, server] = duplexPair<Uint8Array>()
+      const [client, server] = duplexPair<Uint8Array | Uint8ArrayList>()
       // Request doesn't matter
       const respPromise = fetchViaDuplex(client)(new Request('http://example.com/'))
 
       let reqToServer = ''
       const decoder = new TextDecoder()
       for await (const chunk of server.source) {
+        if (isUint8ArrayList(chunk)) {
+          throw new Error('Should not be a Uint8ArrayList')
+        }
         reqToServer += decoder.decode(chunk)
       }
       expect(reqToServer).to.equal('GET / HTTP/1.1\r\nHost: example.com\r\n\r\n')

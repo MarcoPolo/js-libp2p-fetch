@@ -152,12 +152,14 @@
     "release": "aegir release",
     "docs": "aegir docs"
   },
-  "dependencies": {},
   "devDependencies": {
     "aegir": "^38.1.7",
     "it-pair": "^2.0.4"
   },
   "browser": {
     "./dist/src/listener.js": "./dist/src/listener.browser.js"
+  },
+  "dependencies": {
+    "uint8arraylist": "^2.4.3"
   }
 }

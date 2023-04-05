@@ -1,5 +1,6 @@
 /* eslint-disable max-depth */
 /* eslint-disable complexity */
+import { Uint8ArrayList, isUint8ArrayList } from 'uint8arraylist'
 interface Fetch { (req: Request): Promise<Response> }
 
 interface Duplex<TSource, TSink = TSource, RSink = Promise<void>> {
@@ -10,7 +11,7 @@ interface Duplex<TSource, TSink = TSource, RSink = Promise<void>> {
 const CRLF = '\r\n'
 const CRLF_BYTES = (new TextEncoder()).encode(CRLF)
 
-export function fetchViaDuplex (s: Duplex<Uint8Array>): Fetch {
+export function fetchViaDuplex (s: Duplex<Uint8Array | Uint8ArrayList>): Fetch {
   return async (request: Request): Promise<Response> => {
     const method = request.method
     const url = new URL(request.url)
@@ -64,105 +65,110 @@ export function fetchViaDuplex (s: Duplex<Uint8Array>): Fetch {
     let leftoverBuf = new Uint8Array(leftoverBufAB, 0, 0)
     await new Promise<void>((resolve, reject) => {
       const consumer = (async () => {
-        for await (const chunk of readerIt) {
-          if (!readStatusLine || !readHeaderStrings) {
-            let respString = decoder.decode(chunk)
-            if (leftover !== '') {
-              respString = leftover + respString
-              leftover = ''
-            }
-            if (!readStatusLine) {
-              const indexOfNewline = respString.indexOf('\r\n')
-              if (indexOfNewline !== -1) {
-                readStatusLine = true
-                statusLine = respString.substring(0, indexOfNewline)
-                respString = respString.substring(indexOfNewline + 2)
-              } else {
+        for await (let chunks of readerIt) {
+          if (!isUint8ArrayList(chunks)) {
+            chunks = new Uint8ArrayList(chunks)
+          }
+          for (const chunk of chunks) {
+            if (!readStatusLine || !readHeaderStrings) {
+              let respString = decoder.decode(chunk)
+              if (leftover !== '') {
+                respString = leftover + respString
+                leftover = ''
+              }
+              if (!readStatusLine) {
+                const indexOfNewline = respString.indexOf('\r\n')
+                if (indexOfNewline !== -1) {
+                  readStatusLine = true
+                  statusLine = respString.substring(0, indexOfNewline)
+                  respString = respString.substring(indexOfNewline + 2)
+                } else {
                 // Didn't find the newline marker, keep this as leftover
-                leftover = respString
+                  leftover = respString
+                }
               }
-            }
-            if (readStatusLine && !readHeaderStrings) {
-              const indexOfNewline = respString.indexOf('\r\n')
-              if (indexOfNewline === 0) {
+              if (readStatusLine && !readHeaderStrings) {
+                const indexOfNewline = respString.indexOf('\r\n')
+                if (indexOfNewline === 0) {
                 // No headers
-                readHeaderStrings = true
-                resolve()
-                respString = respString.substring(indexOfNewline + 2)
-                // eslint-disable-next-line max-depth
-                if (respString !== '') {
-                  const respStringBuf = new TextEncoder().encode(respString)
-                  await chanWriter.write(respStringBuf)
-                }
-                continue
-              }
-              const indexOfNewlines = respString.indexOf('\r\n\r\n')
-              if (indexOfNewlines !== -1) {
-                headerStrings = respString.substring(0, indexOfNewlines)
-                readHeaderStrings = true
-                // eslint-disable-next-line max-depth
-                if (headerStrings !== '') {
-                  headerStrings.split('\r\n').forEach((header) => {
-                    const [k, v] = header.split(': ')
-                    try {
-                      responseHeaders.set(k, v)
-                    } catch (e) {
-                      // eslint-disable-next-line no-console
-                      console.warn("Couldn't set header", k, v, e)
-                    }
-                  })
-                }
-                // eslint-disable-next-line max-depth
-                if (responseHeaders.get('Transfer-Encoding') === 'chunked') {
-                  chunkedEncoding = true
-                }
-                resolve()
-                respString = respString.substring(indexOfNewlines + 4)
-                // Send the leftover to the body reader
-                if (respString !== '') {
-                  const respStringBuf = new TextEncoder().encode(respString)
-                  if (chunkedEncoding) {
-                    const restBuf = await parseChunkedEncodedBody(respStringBuf, chanWriter)
-                    if (restBuf.byteLength > 0) {
-                      leftoverBuf = new Uint8Array(leftoverBufAB, 0, restBuf.byteLength)
-                      for (let i = 0; i < restBuf.byteLength; i++) {
-                        leftoverBuf[i] = restBuf[i]
-                      }
-                    }
-                  } else {
+                  readHeaderStrings = true
+                  resolve()
+                  respString = respString.substring(indexOfNewline + 2)
+                  // eslint-disable-next-line max-depth
+                  if (respString !== '') {
+                    const respStringBuf = new TextEncoder().encode(respString)
                     await chanWriter.write(respStringBuf)
                   }
+                  continue
                 }
-              } else {
+                const indexOfNewlines = respString.indexOf('\r\n\r\n')
+                if (indexOfNewlines !== -1) {
+                  headerStrings = respString.substring(0, indexOfNewlines)
+                  readHeaderStrings = true
+                  // eslint-disable-next-line max-depth
+                  if (headerStrings !== '') {
+                    headerStrings.split('\r\n').forEach((header) => {
+                      const [k, v] = header.split(': ')
+                      try {
+                        responseHeaders.set(k, v)
+                      } catch (e) {
+                      // eslint-disable-next-line no-console
+                        console.warn("Couldn't set header", k, v, e)
+                      }
+                    })
+                  }
+                  // eslint-disable-next-line max-depth
+                  if (responseHeaders.get('Transfer-Encoding') === 'chunked') {
+                    chunkedEncoding = true
+                  }
+                  resolve()
+                  respString = respString.substring(indexOfNewlines + 4)
+                  // Send the leftover to the body reader
+                  if (respString !== '') {
+                    const respStringBuf = new TextEncoder().encode(respString)
+                    if (chunkedEncoding) {
+                      const restBuf = await parseChunkedEncodedBody(respStringBuf, chanWriter)
+                      if (restBuf.byteLength > 0) {
+                        leftoverBuf = new Uint8Array(leftoverBufAB, 0, restBuf.byteLength)
+                        for (let i = 0; i < restBuf.byteLength; i++) {
+                          leftoverBuf[i] = restBuf[i]
+                        }
+                      }
+                    } else {
+                      await chanWriter.write(respStringBuf)
+                    }
+                  }
+                } else {
                 // Didn't find the newline marker, keep this as leftover
-                leftover = respString
-              }
-            }
-          } else {
-          // We just need to read the body now
-            if (chunkedEncoding) {
-              if (leftoverBuf.length > 0) {
-                const leftoverBytes = leftoverBuf.length
-                // Some leftover bytes, use them
-                // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-                leftoverBuf = new Uint8Array(leftoverBufAB, 0, leftoverBuf.length + chunk.length)
-                for (let i = 0; i < chunk.length; i++) {
-                  leftoverBuf[leftoverBytes + i] = chunk[i]
+                  leftover = respString
                 }
-              } else {
-                leftoverBuf = chunk
-              }
-              const restBuf = await parseChunkedEncodedBody(leftoverBuf, chanWriter)
-              if (restBuf.byteLength > 0) {
-                leftoverBuf = new Uint8Array(leftoverBufAB, 0, restBuf.byteLength)
-                for (let i = 0; i < restBuf.byteLength; i++) {
-                  leftoverBuf[i] = restBuf[i]
-                }
-              } else {
-                leftoverBuf = new Uint8Array(leftoverBufAB, 0, 0)
               }
             } else {
-              await chanWriter.write(chunk)
+              // We just need to read the body now
+              if (chunkedEncoding) {
+                if (leftoverBuf.length > 0) {
+                  const leftoverBytes = leftoverBuf.length
+                  // Some leftover bytes, use them
+                  // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
+                  leftoverBuf = new Uint8Array(leftoverBufAB, 0, leftoverBuf.length + chunk.length)
+                  for (let i = 0; i < chunk.length; i++) {
+                    leftoverBuf[leftoverBytes + i] = chunk[i]
+                  }
+                } else {
+                  leftoverBuf = chunk
+                }
+                const restBuf = await parseChunkedEncodedBody(leftoverBuf, chanWriter)
+                if (restBuf.byteLength > 0) {
+                  leftoverBuf = new Uint8Array(leftoverBufAB, 0, restBuf.byteLength)
+                  for (let i = 0; i < restBuf.byteLength; i++) {
+                    leftoverBuf[i] = restBuf[i]
+                  }
+                } else {
+                  leftoverBuf = new Uint8Array(leftoverBufAB, 0, 0)
+                }
+              } else {
+                await chanWriter.write(chunk)
+              }
             }
           }
         }
