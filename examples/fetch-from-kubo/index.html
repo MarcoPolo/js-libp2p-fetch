@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>js-libp2p WebTransport</title>
+</head>
+
+<body>
+  <div id="app">
+    <div>
+      <p> Connect to (multiaddr with p2p): </p>
+      <textarea id="peerInput" type="text" style="width: 600px; height: 100px;"
+        placeholder="/ip4/34.221.29.193/udp/4001/quic/webtransport/certhash/uEiD_zsX_4c3px3fXGcR7l7Y1uuUVBNrzvDZ3Yo0gG7icvg/certhash/uEiDa3KMjw1j1X7eoyNBLODDh_4TEsKFNKTE7T2Ji-QTE-w/p2p/12D3KooWKasdPzM2iDcBQTHP3YWR8DdgAoBMP4BqXWvxhuCVAYFU"></textarea>
+      <button id="connectBtn">Connect</button>
+    </div>
+    <div id="connlistWrapperEl" hidden="true">
+      <h3>Active Connections:</h3>
+      <ul id="connlistEl"></ul>
+    </div>
+    <div id="downloadCidWrapperEl" hidden="true">
+      <p> Cid to download: </p>
+      <input id="cidInput" type="text" placeholder="CID to download"
+        value="bafybeidatpz2hli6fgu3zul5woi27ujesdf5o5a7bu622qj6ugharciwjq/static/media/ipfs-logo.e2de4d07.svg"></input>
+      <button id="fetchBtn">fetch</button>
+      <div>
+        <h3>Fetched content:</h3>
+        <div id="iframeWrapperEl" style="width: 500px; height: 550px;"></div>
+      </div>
+    </div>
+
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
