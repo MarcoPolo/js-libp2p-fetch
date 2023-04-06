@@ -70,6 +70,8 @@ export function fetchViaDuplex (s: Duplex<Uint8Array | Uint8ArrayList>): Fetch {
             chunks = new Uint8ArrayList(chunks)
           }
           for (const chunk of chunks) {
+            let readBytes = 0
+
             if (!readStatusLine || !readHeaderStrings) {
               let respString = decoder.decode(chunk)
               if (leftover !== '') {
@@ -82,6 +84,7 @@ export function fetchViaDuplex (s: Duplex<Uint8Array | Uint8ArrayList>): Fetch {
                   readStatusLine = true
                   statusLine = respString.substring(0, indexOfNewline)
                   respString = respString.substring(indexOfNewline + 2)
+                  readBytes += indexOfNewline + 2
                 } else {
                 // Didn't find the newline marker, keep this as leftover
                   leftover = respString
@@ -94,6 +97,7 @@ export function fetchViaDuplex (s: Duplex<Uint8Array | Uint8ArrayList>): Fetch {
                   readHeaderStrings = true
                   resolve()
                   respString = respString.substring(indexOfNewline + 2)
+                  readBytes += indexOfNewline + 2
                   // eslint-disable-next-line max-depth
                   if (respString !== '') {
                     const respStringBuf = new TextEncoder().encode(respString)
@@ -123,11 +127,12 @@ export function fetchViaDuplex (s: Duplex<Uint8Array | Uint8ArrayList>): Fetch {
                   }
                   resolve()
                   respString = respString.substring(indexOfNewlines + 4)
+                  readBytes += indexOfNewlines + 4
                   // Send the leftover to the body reader
                   if (respString !== '') {
-                    const respStringBuf = new TextEncoder().encode(respString)
+                    let restBuf = chunk.subarray(readBytes)
                     if (chunkedEncoding) {
-                      const restBuf = await parseChunkedEncodedBody(respStringBuf, chanWriter)
+                      restBuf = await parseChunkedEncodedBody(restBuf, chanWriter)
                       if (restBuf.byteLength > 0) {
                         leftoverBuf = new Uint8Array(leftoverBufAB, 0, restBuf.byteLength)
                         for (let i = 0; i < restBuf.byteLength; i++) {
@@ -135,7 +140,7 @@ export function fetchViaDuplex (s: Duplex<Uint8Array | Uint8ArrayList>): Fetch {
                         }
                       }
                     } else {
-                      await chanWriter.write(respStringBuf)
+                      await chanWriter.write(restBuf)
                     }
                   }
                 } else {
