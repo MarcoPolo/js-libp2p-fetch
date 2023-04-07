@@ -1,5 +1,5 @@
 {
-  "name": "@libp2p/fetch",
+  "name": "@marcopolo_/libp2p-fetch",
   "version": "0.0.1",
   "description": "fetch API over duplexes (js-libp2p streams)",
   "license": "Apache-2.0 OR MIT",

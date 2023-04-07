@@ -28,7 +28,15 @@ declare global {
       a = window.peerInput.placeholder
     }
     const ma = multiaddr(a)
-    await libp2p.dial(ma)
+    const conn = await libp2p.dial(ma)
+
+    const startTime = Date.now()
+
+    setInterval(() => {
+      libp2p.ping(conn.remotePeer).catch((err) => {
+        console.error('ping failed after', Date.now() - startTime, 'ms', err)
+      })
+    }, 500)
   }
 
   libp2p.addEventListener('peer:connect', (_connectionEvent) => {
