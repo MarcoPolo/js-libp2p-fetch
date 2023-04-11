@@ -37,24 +37,28 @@ const fetchHandler = async (event: FetchEvent): Promise<Response> => {
   }
 
   const allConns = libp2p.getConnections()
-  const conn = connectTo != null && connectTo.length > 0 ? await libp2p.dial(multiaddr(connectTo)) : (allConns.length > 0 ? allConns[0] : null)
+  try {
+    const conn = connectTo != null && connectTo.length > 0 ? await libp2p.dial(multiaddr(connectTo)) : (allConns.length > 0 ? allConns[0] : null)
 
-  if (conn != null && allConns.length === 0) {
+    if (conn != null && allConns.length === 0) {
     // Our first connection. Keep a ping around to keep it alive
-    const pingInterval = setInterval(() => {
-      libp2p.ping(multiaddr(connectTo)).catch(err => {
-        console.error('sw ping failed', err)
-        clearInterval(pingInterval)
-      })
-    }, 2000)
-    console.log('sw connected to', conn.remoteAddr.toString())
-  }
+      const pingInterval = setInterval(() => {
+        libp2p.ping(multiaddr(connectTo)).catch(err => {
+          console.error('sw ping failed', err)
+          clearInterval(pingInterval)
+        })
+      }, 2000)
+      console.log('sw connected to', conn.remoteAddr.toString())
+    }
 
-  if (url.host === location.host && libp2p != null && conn != null) {
-    const s = await conn.newStream('/libp2p-http')
-    const fetch = fetchViaDuplex(s)
-    const resp = await fetch(event.request)
-    return resp
+    if (url.host === location.host && libp2p != null && conn != null) {
+      const s = await conn.newStream('/libp2p-http')
+      const fetch = fetchViaDuplex(s)
+      const resp = await fetch(event.request)
+      return resp
+    }
+  } catch (err) {
+    console.error('sw failed to connect', err)
   }
 
   return await fetch(event.request)
