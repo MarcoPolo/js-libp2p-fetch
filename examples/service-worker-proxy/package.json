@@ -1,5 +1,5 @@
 {
-  "name": "helia-service-worker-gateway",
+  "name": "service-worker-proxy",
   "version": "1.0.0",
   "private": true,
   "type": "module",
