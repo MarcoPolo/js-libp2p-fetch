@@ -193,8 +193,8 @@ class HttpParser {
   private static parseHeaders (lines: string[]): Headers {
     const headers = new Headers()
     for (const line of lines) {
-      const [name, value] = line.split(': ', 2)
-      headers.set(name.toLowerCase(), value)
+      const [name] = line.split(': ', 1)
+      headers.set(name.toLowerCase(), line.substring(name.length + 2))
     }
     return headers
   }
