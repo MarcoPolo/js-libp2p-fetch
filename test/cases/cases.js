@@ -1233,6 +1233,38 @@ export const cases = [
     body: undefined
   },
   {
+    name: '200 chunked body',
+    type: RESPONSE,
+    raw: [
+      'HTTP/1.1 200 OK',
+      'Content-Type: text/plain',
+      'Transfer-Encoding: chunked',
+      '',
+      '25  ',
+      'This is the data in the first chunk\r\n',
+      '1C',
+      'and this is the second one\r\n',
+      '0',
+      '', ''
+    ].join(CRLF),
+    shouldKeepAlive: true,
+    msgCompleteOnEOF: false,
+    httpMajor: 1,
+    httpMinor: 1,
+    method: null,
+    url: null,
+    statusCode: 200,
+    statusText: 'OK',
+    headers: [
+      'Content-Type',
+      'text/plain',
+      'Transfer-Encoding',
+      'chunked',
+    ],
+    body: 'This is the data in the first chunk\r\n'
+      + 'and this is the second one\r\n'
+  },
+  {
     name: '200 trailing space on chunked body',
     type: RESPONSE,
     raw: [
