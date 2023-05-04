@@ -1,0 +1,60 @@
+{
+  "name": "helia-service-worker-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bundle Helia with Webpack",
+  "keywords": [],
+  "license": "MIT",
+  "scripts": {
+    "clean": "rimraf ./dist",
+    "lint": "eslint -c .eslintrc.cjs src/",
+    "lint:fix": "eslint -c .eslintrc.cjs src/ --fix",
+    "build": "npm run lint && webpack --env production",
+    "serve": "webpack serve --mode=development",
+    "serve:prod": "webpack serve --mode=production",
+    "start": "npm run serve",
+    "test": "npm run build && playwright test tests",
+    "postinstall": "patch-package"
+  },
+  "browser": "./dist/src/index.js",
+  "browserslist": [
+    "last 1 Chrome version"
+  ],
+  "dependencies": {
+    "@chainsafe/libp2p-noise": "^11.0.2",
+    "@libp2p/webtransport": "^1.0.11",
+    "@marcopolo_/libp2p-fetch": "file:../..",
+    "@multiformats/multiaddr": "^12.1.0",
+    "libp2p": "^0.43.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.21.3",
+    "@babel/preset-env": "^7.20.2",
+    "@babel/preset-react": "^7.18.6",
+    "@babel/preset-typescript": "^7.21.0",
+    "@playwright/test": "^1.32.1",
+    "@types/react": "^18.0.31",
+    "aegir": "^38.1.8",
+    "babel-cli": "^6.26.0",
+    "babel-loader": "^9.1.2",
+    "compression-webpack-plugin": "^10.0.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.7.3",
+    "dexie": "^3.2.3",
+    "eslint": "^8.37.0",
+    "eslint-config-standard-with-typescript": "^34.0.1",
+    "html-webpack-plugin": "^5.5.0",
+    "node-polyfill-webpack-plugin": "^2.0.1",
+    "patch-package": "^6.5.1",
+    "playwright": "^1.32.1",
+    "rimraf": "^4.4.1",
+    "style-loader": "^3.3.2",
+    "test-util-ipfs-example": "^1.0.2",
+    "typescript": "^5.0.3",
+    "webpack": "^5.77.0",
+    "webpack-cli": "^5.0.1",
+    "webpack-dev-server": "^4.13.1",
+    "webpack-merge": "^5.8.0"
+  }
+}
