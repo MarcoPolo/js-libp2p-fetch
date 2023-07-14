@@ -44,7 +44,7 @@ describe('Make a fetch request via duplex', () => {
       reqToServer += decoder.decode(chunk)
     }
 
-    expect(reqToServer).to.equal('GET / HTTP/1.1\r\nx-test: foo\r\nHost: example.com\r\n\r\n')
+    expect(reqToServer).to.equal('GET / HTTP/1.1\r\nHost: example.com\r\nx-test: foo\r\n\r\n')
 
     void server.sink((async function * () {
       yield new TextEncoder().encode('HTTP/1.1 200 OK\r\nX-test: bar\r\n\r\n')
@@ -67,7 +67,8 @@ describe('Make a fetch request via duplex', () => {
       reqToServer += decoder.decode(chunk)
     }
 
-    expect(reqToServer).to.equal('POST /?foo=bar HTTP/1.1\r\ncontent-type: text/plain;charset=UTF-8\r\nx-test: foo\r\nHost: example.com\r\n\r\nhello world')
+    console.log(reqToServer)
+    expect(reqToServer).to.equal('POST /?foo=bar HTTP/1.1\r\nHost: example.com\r\ncontent-type: text/plain;charset=UTF-8\r\nx-test: foo\r\nTransfer-Encoding: chunked\r\n\r\nb\r\nhello world\r\n0\r\n\r\n')
 
     void server.sink((async function * () {
       yield new TextEncoder().encode('HTTP/1.1 200 OK\r\nX-test: bar\r\n\r\nbaz')

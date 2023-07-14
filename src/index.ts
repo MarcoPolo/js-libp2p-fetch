@@ -42,6 +42,8 @@ export function fetchViaDuplex (s: Duplex<Uint8Array | Uint8ArrayList>): Fetch {
 }
 
 const CRLF = '\r\n'
+const encodedCRLF = new TextEncoder().encode(CRLF)
+const encodedFinalChunk = new TextEncoder().encode(`0${CRLF}${CRLF}`)
 async function writeRequestToDuplex (s: Duplex<unknown, Uint8Array>, request: Request): Promise<void> {
   const method = request.method
   const url = new URL(request.url)
@@ -51,22 +53,21 @@ async function writeRequestToDuplex (s: Duplex<unknown, Uint8Array>, request: Re
 
   let httpRequest = `${method} ${path}${query} HTTP/1.1${CRLF}`
 
-  headers.forEach((value, name) => {
-    httpRequest += `${name}: ${value}${CRLF}`
-  })
-
   // Add Host header if not present
   if (!headers.has('Host')) {
     httpRequest += `Host: ${url.host}${CRLF}`
   }
 
-  // Do we need this?
-  // const bodyBuf: ArrayBuffer | null = null
-  // Figure out the content length
-  // if ((request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH') && request.body !== null) {
-  //   bodyBuf = await request.arrayBuffer()
-  //   httpRequest += `Content-Length: ${bodyBuf.byteLength}\r\n`
-  // }
+  headers.forEach((value, name) => {
+    httpRequest += `${name}: ${value}${CRLF}`
+  })
+
+  const requestIncludesAndNeedsContentLength = headers.has('Content-Length') && (method === 'POST' || method === 'PUT' || method === 'PATCH')
+
+  if (!requestIncludesAndNeedsContentLength && request.body !== null) {
+    // If we don't have the content length, we need to use chunked encoding
+    httpRequest += `Transfer-Encoding: chunked${CRLF}`
+  }
 
   httpRequest += CRLF
 
@@ -74,26 +75,36 @@ async function writeRequestToDuplex (s: Duplex<unknown, Uint8Array>, request: Re
     const httpRequestBuffer = new TextEncoder().encode(httpRequest)
     yield httpRequestBuffer
 
-    if (request.body == null) {
+    if (request.body === null) {
       return
     }
+
     const reader = request.body.getReader()
     try {
       while (true) {
         const { done, value } = await reader.read()
         // If the stream is done, break the loop
         if (done) {
+          yield encodedFinalChunk
           break
         }
+
+        // add the chunk length
+        if (!requestIncludesAndNeedsContentLength) {
+          const chunkLength = value.byteLength.toString(16)
+          const chunkLengthBuffer = new TextEncoder().encode(`${chunkLength}${CRLF}`)
+          yield chunkLengthBuffer
+        }
+
         yield value
+
+        if (!requestIncludesAndNeedsContentLength) {
+          yield encodedCRLF
+        }
       }
     } finally {
       reader.releaseLock()
     }
-
-    // if (bodyBuf != null) {
-    //   yield new Uint8Array(bodyBuf)
-    // }
   })())
 }
 
@@ -214,8 +225,11 @@ class HttpParser {
             async transform (chunk, controller) {
               if (!headersParsed) {
                 try {
-                  headerText += new TextDecoder().decode(chunk, { stream: true })
+                  const chunkText = new TextDecoder().decode(chunk, { stream: true })
+                  headerText += chunkText
                   const headerEndIndex = headerText.indexOf('\r\n\r\n')
+                  const prevHeaderTextLength = headerText.length - chunkText.length
+                  const bodyStartIndexRelativeToChunk = (headerEndIndex + 4) - prevHeaderTextLength
 
                   if (headerEndIndex >= 0) {
                     const headerLines = headerText.slice(0, headerEndIndex).split('\r\n')
@@ -231,8 +245,7 @@ class HttpParser {
                     headersParsed = true
                     resolve(readable)
 
-                    const bodyStartIndex = headerEndIndex + 4
-                    const bodyChunk = chunk.subarray(bodyStartIndex)
+                    const bodyChunk = chunk.subarray(bodyStartIndexRelativeToChunk)
 
                     if (bodyChunk.byteLength > 0) {
                       controller.enqueue(bodyChunk)
